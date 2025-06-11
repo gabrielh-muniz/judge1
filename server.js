@@ -1,6 +1,6 @@
 import express from "express";
 import { config } from "dotenv";
-import router as authRoutes from "./api/routes/auth.js";
+import { router as authRoutes } from "./api/routes/auth.js";
 
 config();
 

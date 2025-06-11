@@ -4,16 +4,19 @@ import crypto from "crypto";
 import { catchError } from "../utils/errorHandler.js";
 
 export async function signup(req, res) {
-  const { username, email, password } = req.body;
+  const { username, email, password, confirmPassword } = req.body;
 
   // Validate input
-  if (!username || !email || !password)
+  if (!username || !email || !password || !confirmPassword)
     return res.status(400).json({ error: "All fields are required" });
 
-  if (password.length < 8)
+  if (password.length < 3)
     return res
       .status(400)
-      .json({ error: "Password must be at least 8 characters long" });
+      .json({ error: "Password must be at least 4 characters long" });
+
+  if (password !== confirmPassword)
+    return res.status(400).json({ error: "Passwords do not match" });
 
   const [errorEmail, emailExists] = await catchError(
     query("SELECT * FROM api_users WHERE email = $1", [email])
@@ -54,11 +57,51 @@ export async function signup(req, res) {
     return res.status(500).json({ error: "Internal server error" });
   }
 
-  // Return success response with user data and API key
   res.status(201).json({
     user: result.rows[0],
-    api_key: apiKeyPlain, // Include the API key in the response
+    api_key: hashedApiKey,
     message:
       "User registered successfully. Save your API key, it won't be shown again.",
+  });
+}
+
+export async function signin(req, res) {
+  const { email, password } = req.body;
+
+  if (!email || !password)
+    return res.status(400).json({ error: "Email and password are required" });
+
+  // Check if user exists
+  const [errorUser, result] = await catchError(
+    query("SELECT * FROM api_users WHERE email = $1", [email])
+  );
+  if (errorUser) {
+    console.error("Database error:", errorUser);
+    return res.status(500).json({ error: "Internal server error" });
+  }
+  if (!result.rows.length)
+    return res.status(400).json({ error: "Invalid email or password" });
+
+  const user = result.rows[0];
+
+  // Verify the password
+  const [errorVerify, isMatch] = await catchError(
+    bcrypt.compare(password, user.password)
+  );
+  if (errorVerify) {
+    console.error("Verification error:", errorVerify);
+    return res.status(500).json({ error: "Internal server error" });
+  }
+  if (!isMatch)
+    return res.status(400).json({ error: "Invalid email or password" });
+
+  res.status(200).json({
+    user: {
+      id: user.id,
+      email: user.email,
+      name: user.name,
+    },
+    api_key: user.api_key_hash,
+    message: "User signed in successfully.",
   });
 }
