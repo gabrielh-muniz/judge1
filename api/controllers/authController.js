@@ -2,6 +2,10 @@ import bcrypt from "bcrypt";
 import { query } from "../../db.js";
 import crypto from "crypto";
 import { catchError } from "../utils/errorHandler.js";
+import jwt from "jsonwebtoken";
+import { config } from "dotenv";
+
+config();
 
 export async function signup(req, res) {
   const { username, email, password, confirmPassword } = req.body;
@@ -95,13 +99,19 @@ export async function signin(req, res) {
   if (!isMatch)
     return res.status(400).json({ error: "Invalid email or password" });
 
-  res.status(200).json({
-    user: {
-      id: user.id,
-      email: user.email,
-      name: user.name,
-    },
-    api_key: user.api_key_hash,
-    message: "User signed in successfully.",
-  });
+  // Generate JWT token
+  try {
+    const token = jwt.sign(
+      { id: user.id, email: user.email },
+      process.env.SECRET_KEY
+    );
+
+    res.status(200).json({
+      message: "User signed in successfully.",
+      token,
+    });
+  } catch (error) {
+    console.error("JWT error:", error);
+    return res.status(500).json({ error: "Internal server error" });
+  }
 }
