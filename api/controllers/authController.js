@@ -104,7 +104,7 @@ export async function signin(req, res) {
     const accessToken = jwt.sign(
       { id: user.id, email: user.email },
       process.env.SECRET_KEY,
-      { expiresIn: "15m" }
+      { expiresIn: "30s" }
     );
 
     const refreshToken = jwt.sign(
@@ -115,7 +115,7 @@ export async function signin(req, res) {
     // Store the refresh token in the database
     const [errorToken, tokenResult] = await catchError(
       query(
-        "INSERT INTO refresh_tokens (user_id, token_hash) VALUES ($1, $2) ON CONFLICT (user_id) DO UPDATE SET token_hash = $2 RETURNING *",
+        "INSERT INTO refresh_tokens (user_id, token_hash) VALUES ($1, $2) ON CONFLICT (token_hash) DO UPDATE SET token_hash = $2 RETURNING *",
         [user.id, refreshToken]
       )
     );
@@ -136,6 +136,44 @@ export async function signin(req, res) {
 
     res.status(200).json({
       message: "User signed in successfully.",
+      accessToken,
+      //refreshToken,
+    });
+  } catch (error) {
+    console.error("JWT error:", error);
+    return res.status(500).json({ error: "Internal server error" });
+  }
+}
+
+// Implement the refresh token endpoint
+export async function refresh(req, res) {
+  const token = req.cookies.refreshToken;
+  if (!token)
+    return res.status(401).json({ error: "Refresh token is required" });
+
+  const [errorLookup, { rows }] = await catchError(
+    query("SELECT * FROM refresh_tokens WHERE token_hash = $1", [token])
+  );
+  if (errorLookup) {
+    console.error("Token lookup error:", errorLookup);
+    return res.status(500).json({ error: "Internal server error" });
+  }
+  if (!rows.length || rows[0].token_hash !== token)
+    return res.status(401).json({ error: "Invalid refresh token" });
+
+  // Successfully found the refresh token
+  const user = rows[0];
+  try {
+    const accessToken = jwt.sign(
+      { id: user.user_id, email: user.email },
+      process.env.SECRET_KEY,
+      { expiresIn: "15m" }
+    );
+
+    // TODO: consider rotating the refresh token here
+
+    res.status(200).json({
+      message: "Access token refreshed successfully.",
       accessToken,
     });
   } catch (error) {
