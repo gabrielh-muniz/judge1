@@ -181,3 +181,34 @@ export async function refresh(req, res) {
     return res.status(500).json({ error: "Internal server error" });
   }
 }
+
+export async function logout(req, res) {
+  const token = req.cookies.refreshToken;
+  if (!token) {
+    return res.status(200).json({ message: "Already logged out" });
+  }
+
+  try {
+    const [errorDelete, deleteResult] = await catchError(
+      query("DELETE FROM refresh_tokens WHERE token_hash = $1 RETURNING *", [
+        token,
+      ])
+    );
+    if (errorDelete) {
+      console.error("Error during logout:", errorDelete);
+      return res.status(500).json({ error: "Internal server error" });
+    }
+    if (!deleteResult.rows.length)
+      return res.status(200).json({ message: "Already logged out" });
+
+    res.clearCookie("refreshToken", {
+      httpOnly: true,
+      sameSite: "Strict",
+    });
+
+    return res.status(200).json({ message: "Logged out successfully" });
+  } catch (error) {
+    console.error("Logout error:", error);
+    return res.status(500).json({ error: "Internal server error" });
+  }
+}
