@@ -99,16 +99,44 @@ export async function signin(req, res) {
   if (!isMatch)
     return res.status(400).json({ error: "Invalid email or password" });
 
-  // Generate JWT token
+  // Generate access token and refresh token
   try {
-    const token = jwt.sign(
+    const accessToken = jwt.sign(
       { id: user.id, email: user.email },
-      process.env.SECRET_KEY
+      process.env.SECRET_KEY,
+      { expiresIn: "15m" }
     );
+
+    const refreshToken = jwt.sign(
+      { id: user.id, email: user.email },
+      process.env.SECRET_REFRESH_KEY
+    );
+
+    // Store the refresh token in the database
+    const [errorToken, tokenResult] = await catchError(
+      query(
+        "INSERT INTO refresh_tokens (user_id, token_hash) VALUES ($1, $2) ON CONFLICT (user_id) DO UPDATE SET token_hash = $2 RETURNING *",
+        [user.id, refreshToken]
+      )
+    );
+    if (errorToken) {
+      console.error("Token storage error:", errorToken);
+      return res.status(500).json({ error: "Internal server error" });
+    }
+    if (!tokenResult.rows.length) {
+      return res.status(500).json({ error: "Failed to store refresh token" });
+    }
+
+    // Set refresh token in secure cookie
+    res.cookie("refreshToken", refreshToken, {
+      httpOnly: true,
+      sameSite: "Strict",
+      maxAge: 30 * 24 * 60 * 60 * 1000, // 30 days
+    });
 
     res.status(200).json({
       message: "User signed in successfully.",
-      token,
+      accessToken,
     });
   } catch (error) {
     console.error("JWT error:", error);
