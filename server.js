@@ -17,6 +17,7 @@ app.use(cookieParser());
 const allowedOrigins = [
   "http://localhost:5173", // React development server
   "http://localhost:3001", // Optional: Another frontend origin if needed
+  "http://127.0.0.1:8080", // Frontend running on 127.0.0.1:8080
   // Add production URLs when deploying
 ];
 
@@ -34,11 +35,14 @@ app.use(
     },
     credentials: true,
     methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-    allowedHeaders: ["Content-Type", "Authorization", "X-API-KEY"],
+    allowedHeaders: [
+      "Content-Type",
+      "Authorization",
+      "X-API-KEY",
+      "Access-Control-Allow-Origin",
+    ],
   })
 );
-
-// Add this after your CORS configuration
 app.use((err, req, res, next) => {
   if (err.message === "Not allowed by CORS") {
     return res.status(403).json({
@@ -46,8 +50,6 @@ app.use((err, req, res, next) => {
       message: "The request origin is not in the allowed list of origins.",
     });
   }
-
-  // Handle other errors
   console.error(err.stack);
   res.status(500).json({ error: "Internal server error" });
 });
