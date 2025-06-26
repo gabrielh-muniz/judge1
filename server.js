@@ -13,12 +13,11 @@ const PORT = process.env.PORT || 3000;
 app.use(express.json());
 app.use(cookieParser());
 
-// Configure CORS for specific origins with credentials
 const allowedOrigins = [
-  "http://localhost:5173", // React development server
-  "http://localhost:3001", // Optional: Another frontend origin if needed
-  "http://127.0.0.1:8080", // Frontend running on 127.0.0.1:8080
-  // Add production URLs when deploying
+  "http://localhost:5173",
+  "http://localhost:3001",
+  "http://127.0.0.1:8080", // or localhost:8080
+  "http://localhost:8080",
 ];
 
 app.use(

@@ -62,8 +62,6 @@ export async function signup(req, res) {
   }
 
   res.status(201).json({
-    user: result.rows[0],
-    api_key: hashedApiKey,
     message:
       "User registered successfully. Save your API key, it won't be shown again.",
   });
@@ -138,6 +136,10 @@ export async function signin(req, res) {
       message: "User signed in successfully.",
       accessToken,
       //refreshToken,
+      user: {
+        id: user.id,
+        name: user.name,
+      },
     });
   } catch (error) {
     console.error("JWT error:", error);
@@ -175,6 +177,7 @@ export async function refresh(req, res) {
     res.status(200).json({
       message: "Access token refreshed successfully.",
       accessToken,
+      user: { id: user.id, name: user.name },
     });
   } catch (error) {
     console.error("JWT error:", error);
